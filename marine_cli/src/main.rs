@@ -2,6 +2,7 @@ mod config;
 mod hint;
 mod login;
 mod xdginfos;
+mod remember;
 use rpassword::prompt_password;
 use rustyline::Editor;
 use rustyline::{error::ReadlineError, history::DefaultHistory};
@@ -57,6 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut prompt: &str = &defaultpromot;
     let mut currenttype = RustLineType::CommandChoose;
     let mut current_wm: String = String::new();
+    let mut default_input: Option<String> = None;
     loop {
         if let RustLineType::CommandChoose = currenttype {
             rl.set_helper(Some(h.clone()));
@@ -66,6 +68,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let readline = if let RustLineType::ToLogin = currenttype {
             rl.readline_with_initial(prompt, (command.as_str(), ""))
+        } else if default_input.is_some() {
+            let default_input = default_input.take().unwrap_or("".into());
+            rl.readline_with_initial(prompt, (default_input.as_str(), ""))
         } else {
             rl.readline(prompt)
         };
@@ -87,10 +92,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                         "loginwm" => {
                             currenttype = RustLineType::LoginWm;
                             prompt = "UserName: ";
+                            default_input = remember::get_last_user_name();
                         }
                         "loginshell" => {
                             currenttype = RustLineType::LoginShell;
                             prompt = "UserName: ";
+                            default_input = remember::get_last_user_name();
                         }
                         "showinfo" => {
                             let wm_index = choose_wm();
@@ -154,6 +161,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .filter(|cmd| !cmd.is_empty())
                             .map(|cmd| cmd.to_string())
                             .collect();
+                        remember::write_last_user_name(username.as_str());
 
                         if cmd.is_empty() {
                             eprintln!("Miss Shell Command");
